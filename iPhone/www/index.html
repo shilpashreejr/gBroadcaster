@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <title></title>
+        
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no;" />
+        <meta charset="utf-8">
+            
+            
+            <!-- iPad/iPhone specific css below, add after your main css >
+             <link rel="stylesheet" media="only screen and (max-device-width: 1024px)" href="ipad.css" type="text/css" />		
+             <link rel="stylesheet" media="only screen and (max-device-width: 480px)" href="iphone.css" type="text/css" />		
+             -->
+            <!-- If your application is targeting iOS BEFORE 4.0 you MUST put json2.js from http://www.JSON.org/json2.js into your www directory and include it here -->
+            <script type="text/javascript" charset="utf-8" src="phonegap-1.2.0.js"></script>
+            <script type="text/javascript" charset="utf-8" src="jquery/jquery-1.7.1.min.js"></script>
+            <script type="text/javascript" charset="utf-8" src="jquery/jquery.mobile-1.0.js"></script>
+            <link rel="stylesheet" href="css/jquery-mobile.css" type="text/css" />
+            <script type="text/javascript">
+                var value = window.localStorage.getItem("username");
+                var Env = {
+                    timestmp: '0',
+                    name: "shil",
+                    public_uri: "http://shil.jyothepro.com/",
+                    lastTimestampUsed: '0',
+                    curExecuting: false,
+                    latitude: 0,
+                    longitude: 0,
+                    lastUsed: 0,
+                    addedSoFar: []
+                };
+                
+                // If you want to prevent dragging, uncomment this section
+                /*
+                 function preventBehavior(e) 
+                 { 
+                 e.preventDefault(); 
+                 };
+                 document.addEventListener("touchmove", preventBehavior, false);
+                 */
+                
+                /* If you are supporting your own protocol, the var invokeString will contain any arguments to the app launch.
+                 see http://iphonedevelopertips.com/cocoa/launching-your-own-application-via-a-custom-url-scheme.html
+                 for more details -jm */
+                /*
+                 function handleOpenURL(url)
+                 {
+                 // TODO: do something with the url passed in.
+                 }
+                 */
+                // Wait for PhoneGap to load
+                //
+                document.addEventListener("deviceready", onDeviceReady, false);
+                
+                function checkConnection() {
+                    var networkState = navigator.network.connection.type;
+                    
+                    var states = {};
+                    states[Connection.UNKNOWN]  = 'Unknown connection';
+                    states[Connection.ETHERNET] = 'Ethernet connection';
+                    states[Connection.WIFI] 	= 'WiFi connection';
+                    states[Connection.CELL_2G]  = 'Cell 2G connection';
+                    states[Connection.CELL_3G]  = 'Cell 3G connection';
+                    states[Connection.CELL_4G]  = 'Cell 4G connection';
+                    states[Connection.NONE] 	= 'No network connection';
+                    
+                    return states[networkState];
+                    //alert('Connection type: ' + states[networkState]);
+                }
+                
+                function registerName() {
+                    $.post(Env.public_uri + "comm.php", { name: Env.name, operation: "registerName", data: Env.timestamp},
+                        function(response) {
+                           Env.timestamp = 0;
+                           var obj = jQuery.parseJSON(response);
+                           Env.timestamp = obj.data;
+                           //setTimeout("getData()",1000);
+                           setGeoLocation();
+                           getData();
+                        });
+                }
+                
+                function setGeoLocation() {
+                	navigator.geolocation.getCurrentPosition( 
+                        function (position) {  
+                             Env.latitude = position.coords.latitude;
+                             Env.longitude = position.coords.longitude;
+                             setTimeout(function () {
+                                setGeoLocation();
+                             }, 60000);
+                             
+                        }, 
+                        // next function is the error callback
+                        function (error){
+                            console.log('getData: Something went wrong with getting geo-location: ' + error);
+                        }
+                    );
+                }
+                
+                function getData() {
+                	$.post(Env.public_uri + "comm.php", 
+                           { 
+                                name: Env.name, 
+                                operation: "getData",
+                                latitude: Env.latitude, 
+                                longitude: Env.longitude,  
+                                data: Env.timestamp 
+                           },
+                           function(response) {
+                           
+                           var objResp = jQuery.parseJSON(response);
+                           
+                           if (objResp.lastTimestamp) {
+                                Env.timestamp = objResp.lastTimestamp;
+                           }
+                           
+                           var temp = {};
+                           for(obj in objResp.data) {
+                                temp = objResp.data[obj];
+                                 if (jQuery.inArray(temp.name + '_' + temp.data + '_' + temp.timestamp, Env.addedSoFar) < 0) {
+                                    $('#chatdata').html($('#chatdata').html() + "<div><span>" + temp.name + ": </span>" + temp.data + "</div>");
+                                    Env.addedSoFar.push(temp.name + '_' + temp.data + '_' + temp.timestamp);
+                                }
+                                Env.lastUsed = temp.timestamp; 
+                           }
+                           //setTimeout("getData()", 1000);
+                           setTimeout(function () {
+                                      getData();
+                                      
+                                      }, 5000);
+                           
+                           });
+                    /*
+                     navigator.geolocation.getCurrentPosition( 
+                     function (position) {  
+                     console.log('inside geo location');
+                     $.post(Env.public_uri + "comm.php", 
+                     { 
+                     name: Env.name, 
+                     operation: "getData",
+                     latitude: position.coords.latitude, 
+                     longitude: position.coords.longitude,  
+                     data: Env.timestamp 
+                     },
+                     function(response) {
+                     console.log('response received');
+                     var objResp = jQuery.parseJSON(response);
+                     
+                     if (objResp.lastTimestamp) {
+                     Env.timestamp = objResp.lastTimestamp;
+                     }
+                     
+                     var temp = {};
+                     for(obj in objResp.data) {
+                     temp = objResp.data[obj];
+                     $('#chatdata').html($('#chatdata').html() + "<div><span>" + temp.name + ": </span>" + temp.data + "</div>");
+                     }
+                     console.log('calling getdata');
+                     //setTimeout("getData()", 1000);
+                     setTimeout(function () {
+                     getData();
+                     }, 1000);
+                     
+                     }
+                     );
+                     }, 
+                     // next function is the error callback
+                     function (error){
+                     console.log('getData: Something went wrong with getting geo-location: ' + error);
+                     }
+                     );
+                     */	
+                }
+                
+                function onBodyLoad()
+                {
+                    document.addEventListener("deviceready", onDeviceReady, false);
+                    //
+                    $('#setusername').submit(function() {
+                                             if ($("#curusername").val() !== "") {
+                                             // window.localStorage.setItem("username", $("input:first").val());
+                                             Env.name = $("#curusername").val();
+                                             registerName();
+                                             $("#setusernameDiv").hide();
+                                             $("#chatformDiv").show();
+                                             }
+                                             return false;
+                                             });
+                    $("form").submit(function() {
+                                     if ($("input:first").val() !== "") {
+                                     
+                                     $('#chatdata').html($('#chatdata').html() + "<div><span>me: </span>" + $("input:first").val() + "</div>");
+                                     var textData = $("input:first").val();
+                                     $("input:first").val('');
+                                     $.post(Env.public_uri + "comm.php", 
+                                            { 
+                                            name: Env.name, 
+                                            operation: "postData", 
+                                            latitude: Env.latitude, 
+                                            longitude: Env.longitude, 
+                                            data: textData
+                                            },
+                                            function(response) {
+                                                setTimeout("getData()",1000);
+                                            }
+                                        );
+                                     /*
+                                     navigator.geolocation.getCurrentPosition( 
+                                                                              function (position) {  
+                                                                              
+                                                                              $.post(Env.public_uri + "comm.php", 
+                                                                                     { 
+                                                                                     name: Env.name, 
+                                                                                     operation: "postData", 
+                                                                                     latitude: position.coords.latitude, 
+                                                                                     longitude: position.coords.longitude, 
+                                                                                     data: textData
+                                                                                     },
+                                                                                     function(response) {
+                                                                                     console.log(response);
+                                                                                     setTimeout("getData()",1000);
+                                                                                     
+                                                                                     }
+                                                                                     );
+                                                                              }, 
+                                                                              // next function is the error callback
+                                                                              function (error){
+                                                                              console.log('Something went wrong with getting geo-location');
+                                                                              }
+                                                                              );
+                                      */
+                                     
+                                     }
+                                     
+                                     return false;
+                                     });
+                }
+                
+                /* When this function is called, PhoneGap has been initialized and is ready to roll */
+                /* If you are supporting your own protocol, the var invokeString will contain any arguments to the app launch.
+                 see http://iphonedevelopertips.com/cocoa/launching-your-own-application-via-a-custom-url-scheme.html
+                 for more details -jm */
+                function onDeviceReady()
+                {
+                    // do your thing!
+                    //navigator.notification.alert("PhoneGap is working")
+                    var connectionStatus = checkConnection();
+                    if (connectionStatus === 'Unknown connection' || connectionStatus === 'No network connection' ) {
+                        alert('Sorry this application needs Internet access');
+                    } else {
+                        //registerName();
+                    }
+                }
+                
+                </script>
+            </head>
+	<body onload="onBodyLoad()">
+		<div id="main">
+			<div id="container">
+				<div id="header" data-role="header" data-position="fixed" data-theme="b" class="ui-header ui-bar-f ui-header-fixed fade ui-fixed-inline" role="banner" style="top: 0px; "><h1>gbroadcaster</h1></div>
+				<div id="content">
+					<div id="text" class="alignCenter"></div>
+					<div>
+                        <div id="chatformDiv" style="display:none">
+                            <div>
+                                <div><h4>Chat History<h4></div>
+                                <div id="chatdata"></div>
+                            </div>
+                            <form id="chatform" action="" data-ajax="false" >
+                                <input type="text" value="" maxlength="25"/>
+                                <input data-role="button"  data-inline="true" type="submit" value="send"/>
+                            </form>
+                        </div>
+                        <div id="setusernameDiv">
+                            <form id="setusername" action="" data-ajax="false" >
+                                <div>ENTER YOUR NAME:</div>
+                                <input id="curusername" type="text" name="name" value=""/>
+                                <input type="submit" value="connect"/>
+                            </form>
+                        </div>
+					</div>
+				</div>
+				<div id="footer"></div>
+			</div>
+		</div>
+	</body>
+</html>
